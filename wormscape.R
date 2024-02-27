@@ -1,3 +1,14 @@
+########################
+###  WormScape v0.8  ###
+########################
+
+# February 2024 update
+# Streamlining code and making it easier to use
+
+# Todo:
+# - Make it a package 
+# - Add vignettes
+
 library(tidyverse)
 library(vegan)
 library(progress)
@@ -7,20 +18,22 @@ library(progress)
 ##################################
 
 # Your working directory
-WDpath="./20231017_075835_446_output/"
+WDpath="~/Box Sync/SamuelLabShared/LabMemberFiles/Adrien/02_Collaborations/Dana/Width"
 
-# The name that has the WormScape_output files
+# The name that has the WormScapeOutput files
 ## If you have multiple plate, for your convenience you can move all the
 ## WormScape outputs folder in the same location and rename them accordingly
-PlateName="PixelProcessorOutput"
+PlateName="WormScapeOutput"
 
 # The name of your metadata file
 ## Use the template file for simplicity
-MetaPath="../gst_4_reporter_10_17_23.metadata.csv"
+MetaPath="metadata.txt"
 
 # Set channel colors:
-ch2Col="Green"
-ch3Col="Red"
+channel.colors=c("Green","Red","Magenta")
+
+# Set pixel scale (µm):
+pixelScale=1.5
 
 ######################################################
 ### Run the thing below without changing anything ####
@@ -29,18 +42,17 @@ ch3Col="Red"
 
 # Loading data
 setwd(WDpath)
-ch2files=list.files(path=PlateName, full.names=TRUE, pattern = ".*Ch2.*.txt")
-ch3files=list.files(path=PlateName, full.names=TRUE, pattern = ".*Ch3.*.txt")
+chlist<-list()
+for (i in 1:length(channel.colors)){
+  chlist[[i]]<-list(list.files(path=PlateName, full.names=TRUE, pattern = paste0(".*Ch",i,".*.txt")),channel.colors[i])
+}
+
 meta<-read.csv(MetaPath)
 
-chlist<-list(list(ch2files,ch2Col),
-             list(ch3files,ch3Col))
 
 # Functions:
-channelfiles=ch2files
-ChCol=ch2Col
 
-ChProcessor<-function(channelfiles,ChCol,meta){
+wormscape<-function(channelfiles,ChCol,meta){
   channel.data<-list()
   channel.profile<-list()
   channel.bgflu<-list()
@@ -113,20 +125,21 @@ ChProcessor<-function(channelfiles,ChCol,meta){
     rename(Per=vp) %>% 
     pivot_longer(!Per, names_to="worms", values_to="Intensity")
   channel.long<-channel.long[complete.cases(channel.long),]
-  channel.long$col<-ChCol
+  channel.long$ChannelColor<-ChCol
   
-  ch.merge<-channel.long
-  ch.merge<-ch.merge %>% separate(worms, into = c("Plate","well","worm"), sep="_")
-  ch.merge$well<-gsub("Well","",ch.merge$well)
-  ch.merge$og<-paste(ch.merge$Plate,"_","Well",ch.merge$well,"_",ch.merge$worm,sep="")
-  ch.merge<-left_join(ch.merge, meta, by=c("Plate","well"))
+  ch.merge<-channel.long %>% 
+    separate(worms, into = c("Plate","well","worm"), sep="_") %>% 
+    mutate(well=gsub("Well","",well),
+           og=paste0(Plate,"_","Well",well,"_",worm)) %>% 
+    left_join(meta, by=c("Plate","well"))
   
-  ch.Summ<-data.frame(IntMean=sapply(channel.data, sum)/lengths(channel.data)) %>%
+  ch.Summ<-tibble(IntMean=sapply(channel.data, sum)/lengths(channel.data),
+                      WormLength=lengths(channel.data)*pixelScale) %>%
     rownames_to_column("ID") %>%
     separate(ID, into = c("Plate","well","worm"), sep="_") %>%
     mutate(well=gsub("Well","",well)) %>%
     left_join(meta, by=c("Plate","well")) %>%
-    mutate(channel=ChCol)
+    mutate(ChannelColor=ChCol)
   
   sto<-Sys.time()
   cat(paste("Summary steps took:", timeCheck(sto,sta),"\n"))
@@ -138,19 +151,19 @@ ChProcessor<-function(channelfiles,ChCol,meta){
   for(i in 1:length(channel.data)){
     pb$tick()
     tmp<-channel.data[[i]] %>%
-      mutate(rper=round(100/nrow(channel.data[[i]])*row_number())) %>%
+      mutate(y=round(100/nrow(channel.data[[i]])*row_number())) %>%
       rename_with(~gsub("V","",.x)) %>%
-      pivot_longer(!rper, names_to = "cper",values_to = "Int") %>%
-      type_convert(col_types = cols(rper = "d",cper="d",Int="d")) %>%
-      mutate(cper=floor((100/max(cper))*cper)) %>%
-      mutate(cper=ifelse(cper==100, 99,cper),cper=cper+1) %>%
-      group_by(rper,cper) %>%
+      pivot_longer(!y, names_to = "x",values_to = "Int") %>%
+      type_convert(col_types = cols(y = "d",x="d",Int="d")) %>%
+      mutate(x=floor((100/max(x))*x)) %>%
+      mutate(x=ifelse(x==100, 99,x),x=x+1) %>%
+      group_by(y,x) %>%
       summarise(Int=mean(Int), .groups = "keep") %>%
       ungroup()
     colnames(tmp)<-gsub("Int",names(channel.data)[i],colnames(tmp))
     mlist[[i]]<-tmp
   }
-  ch.mat<-reduce(mlist,full_join, by = c("rper", "cper"))
+  ch.mat<-reduce(mlist,full_join, by = c("y", "x"))
   sto<-Sys.time()
   cat(paste("Generating Matrices steps took:", timeCheck(sto,sta),"\n"))
   
@@ -190,138 +203,17 @@ Processor<-function(chlist){
   return(final)
 }
 
-# The code that analyzes your data:
+#######################################
+## The code that analyzes your data: ##
+#######################################
 
-final<-Processor(chlist)
+WormscapeResults<-wormscape(chlist)
 
-gm<-final[[1]][[3]] %>% 
-  pivot_longer(!c(rper,cper)) %>% 
-  separate(name, into=c("Plate","well","Worm"),sep="_") %>% 
-  mutate(well=gsub("Well","",well)) %>% 
-  left_join(meta) %>% 
-  #filter(Reporter %in% selection ) %>% 
-  #mutate(RNAi=gsub("bfl","fl",RNAi)) %>% 
-  #mutate(Microbe=gsub("bfl","fl",Microbe)) %>% 
-  #mutate(Microbe=factor(Microbe, c("L4440","ahr-1","ahr-1;flp-8", "flp-8","BIGbiome", "MYb71"))) %>%
-  group_by(rper,cper,Type,Microbe) %>%
-  summarise(n=mean(value))
+#This function create a list of list of dataframes. One per channel and per plates. 
+# If you have 1 plate and 2 channels, you'll have 2 lists of 3 dataframes
+# If you have 1 plate and 3 channels, you'll have 3 lists of 3 dataframes
+# If you have 2 plates and 3 channels, you'll have 6 lists of 3 dataframes
 
-
-ggplot(data=gm)+
-  theme_bw()+
-  geom_raster(aes(x=cper,y=rper,fill=scales::rescale(n)))+
-  scale_fill_viridis_c(option = "H")+
-  annotation_raster(wormline, ymin = 0,ymax= 100,xmin = 0,xmax = 110)+
-  facet_wrap(RNAi~Microbe,ncol=3)+
-  theme_minimal()+
-  theme(panel.grid = element_blank(),
-        legend.position = "none",
-        panel.background = element_rect(fill="black"))+
-  coord_fixed(ratio=0.1)+
-  ylab("Width (%)")+
-  xlab("Length (%)")+
-  ggtitle("gst-4 Reporter Fluorescence")
-
-
-######################################
-### Optional code for fancy plots: ###
-######################################
-
-# Ploting code for when you have one plate and 2 colors
-## Profile comparison
-
-final[[1]][[2]] %>%
-  select(Per,Intensity,worm,GP.type,Bacteria) %>%
-  rename(Green=Intensity,Comp=Bacteria) %>%
-  left_join(final[[2]][[2]] %>%
-              select(Per,Intensity,worm) %>%
-              rename(Red=Intensity)) %>%
-  ggplot(aes(x=as.numeric(Per),y=Green,col=GP.type))+
-  geom_smooth()+
-  facet_wrap(~Comp)
-
-## Green vs Red comparison
-
-final[[1]][[1]] %>%
-  select(!channel) %>%
-  rename(Gint=IntMean)  %>%
-  left_join(final[[2]][[1]] %>%
-              rename(Rint=IntMean) %>%
-              select(!channel)) %>%
-  ggplot(aes(x=Gint,y=Rint,col=GP.type))+
-  geom_point()+
-  facet_wrap(~Bacteria,scales = "free")
-
-# Example to parse more than one plate plates
-
-##  Use a template name than can be iterated through (e.g. Plate1, Plate2, etc...)
-
-## Plate folder name:
-PlaFol="Plate"
-## Number of plate:
-NP=4
-## Channel colors
-ch2Col="Green"
-ch3Col="Red"
-
-## Processing:
-chlist<-list()
-chp<-list()
-a=0
-for(pn in 1:NP){
-  a=a+1 
-  chp[[a]]<-list.files(path=paste0(PlaFol,pn), full.names=TRUE, pattern = ".*Ch2.*.txt")
-  a=a+1
-  chp[[a]]<-list.files(path=paste0(PlaFol,pn), full.names=TRUE, pattern = ".*Ch3.*.txt")
-}
-
-for(b in 1:a){
-  if(b %in% seq(1,a,2)){
-    chlist[[b]]<-list(chp[[b]],ch2Col)
-  }else if(b %in% seq(2,a,2)){
-    chlist[[b]]<-list(chp[[b]],ch3Col)
-  }
-}
-
-final<-Processor(chlist)
-
-Pall<-rbind(final[[1]][[1]],final[[3]][[1]],final[[5]][[1]],final[[7]][[1]]) %>%
-  select(!channel) %>%
-  rename(Gint=IntMean)  %>%
-  left_join(rbind(final[[2]][[1]],final[[4]][[1]],final[[6]][[1]],final[[8]][[1]]) %>%
-              rename(Rint=IntMean) %>%
-              select(!channel))
-ggplot(aes(x=Gint,y=Rint,col=GP.type))+
-  geom_point()+
-  facet_wrap(~Bacteria,scales = "free")
-
-
-
-#worm_heatmap
-wormline<-png::readPNG("../wormline.png")
-
-gm<-final[[1]][[3]] %>% 
-  pivot_longer(!c(rper,cper)) %>% 
-  separate(name, into=c("Plate","well","Worm"),sep="_") %>% 
-  mutate(well=gsub("Well","",well)) %>% 
-  left_join(meta) %>% 
-  #mutate(RNAi=gsub("bfl","fl",RNAi)) %>% 
-  #mutate(Microbe=gsub("bfl","fl",Microbe)) %>% 
-  #mutate(Microbe=factor(Microbe, c("L4440","ahr-1","ahr-1;flp-8", "flp-8","BIGbiome", "MYb71"))) %>%
-  group_by(rper,cper,Type,Microbe) %>%
-  summarise(n=mean(value))
-
-ggplot(data=gm)+
-  theme_bw()+
-  geom_raster(aes(x=cper,y=rper,fill=scales::rescale(n)))+
-  scale_fill_viridis_c(option = "H")+
-  annotation_raster(wormline, ymin = 0,ymax= 100,xmin = 0,xmax = 110)+
-  facet_wrap(Type~Microbe,ncol=6)+
-  theme_minimal()+
-  theme(panel.grid = element_blank(),
-        legend.position = "none",
-        panel.background = element_rect(fill="black"))+
-  coord_fixed(ratio=0.1)+
-  ylab("Width (%)")+
-  xlab("Length (%)")+
-  ggtitle("gst-4 Reporter mutants on 10.17.2023")
+#First dataframe is a tibble with the average fluorescence intensity and length per worm, has metadata
+#Second dataframe is a tibble with the longitudinal fluorescence profile of each worm, has metadata
+#Third dataframe is tibble of a long format matrix of the average pixel value of the worm fluorescence profile along the x and y axis (normalized in percent). Doesn't have metadata
