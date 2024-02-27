@@ -21,15 +21,15 @@ library(progress)
 WDpath="~/Box Sync/SamuelLabShared/LabMemberFiles/Adrien/02_Collaborations/Dana/Width"
 
 # The name that has the WormScapeOutput files
-## If you have multiple plate, for your convenience you can move all the
-## WormScape outputs folder in the same location and rename them accordingly
+## If you have multiple plates, for your convenience, you can move all the
+## WormScape outputs folders in the same location and renames them accordingly
 PlateName="WormScapeOutput"
 
 # The name of your metadata file
 ## Use the template file for simplicity
 MetaPath="metadata.txt"
 
-# Set channel colors:
+# Set channel colors in the same order as the microscopy channels:
 channel.colors=c("Green","Red","Magenta")
 
 # Set pixel scale (µm):
@@ -133,9 +133,9 @@ wormscape<-function(channelfiles,ChCol,meta){
            og=paste0(Plate,"_","Well",well,"_",worm)) %>% 
     left_join(meta, by=c("Plate","well"))
   
-  ch.Summ<-tibble(IntMean=sapply(channel.data, sum)/lengths(channel.data),
-                      WormLength=lengths(channel.data)*pixelScale) %>%
-    rownames_to_column("ID") %>%
+  ch.Summ<-tibble(ID=names(channel.data),
+                  IntMean=sapply(channel.data, sum)/lengths(channel.data),
+                  WormLength=lengths(channel.data)*pixelScale) %>%
     separate(ID, into = c("Plate","well","worm"), sep="_") %>%
     mutate(well=gsub("Well","",well)) %>%
     left_join(meta, by=c("Plate","well")) %>%
@@ -209,11 +209,11 @@ Processor<-function(chlist){
 
 WormscapeResults<-wormscape(chlist)
 
-#This function create a list of list of dataframes. One per channel and per plates. 
-# If you have 1 plate and 2 channels, you'll have 2 lists of 3 dataframes
-# If you have 1 plate and 3 channels, you'll have 3 lists of 3 dataframes
-# If you have 2 plates and 3 channels, you'll have 6 lists of 3 dataframes
+#This function creates a list of list of data frames. One per channel and per plates. 
+# If you have 1 plate and 2 channels, you'll have 2 lists of 3 data frames
+# If you have 1 plate and 3 channels, you'll have 3 lists of 3 data frames
+# If you have 2 plates and 3 channels, you'll have 6 lists of 3 data frames
 
-#First dataframe is a tibble with the average fluorescence intensity and length per worm, has metadata
-#Second dataframe is a tibble with the longitudinal fluorescence profile of each worm, has metadata
-#Third dataframe is tibble of a long format matrix of the average pixel value of the worm fluorescence profile along the x and y axis (normalized in percent). Doesn't have metadata
+#First data frame is a tibble with the average fluorescence intensity and length per worm, has metadata
+#Second data frame is a tibble with the longitudinal fluorescence profile of each worm, has metadata
+#Third data frame is a tibble of a long format matrix of the average pixel value of the worm fluorescence profile along the x and y axis (normalized in percent). Doesn't have metadata
