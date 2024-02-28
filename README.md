@@ -51,10 +51,78 @@ It will ask you to:
 1. Select the folder that contains the output of Worm_align.jim
 2. Select the folder that contains the original raw pictures
 
-Then let the script work, once done you can close Fiji and move to R.
+Then let the script work; once done, you can close Fiji and move to R.
 
-# Intensity.Processing.Script.R
+# wormscape.R
 
-This final script gathers all the information generated in the previous step in usable R objects and has basic plots
+This final script gathers all the information generated in the previous step in usable R objects and has basic plots.
+This step requires a Metadata file with the following required columns: `Well`, `Plate` and `ChannelColor`.
 
-Open the script in R and follow the instructions.
+
+## Wormscape Output
+
+At the end of this lengthy process, you will have an object called: `WormscapeResults`.
+This is a list of lists of data frames. One per channel and per plate. 
+If you have one plate and two channels, you'll have two lists of 3 data frames
+If you have one plate and three channels, you'll have three lists of 3 data frames
+If you have two plates and three channels, you'll have six lists of 3 data frames
+
+- The first data frame is a tibble with the average fluorescence intensity and length per worm, has metadata
+- The second data frame is a tibble with the longitudinal fluorescence profile of each worm, has metadata
+- The third data frame is a tibble of a long format matrix of the average pixel value of the worm fluorescence profile along the x and y axis (normalized in percent). Doesn't have metadata
+
+## Analyzing the data
+In the example below, we will pretend to have analyzed an experiment with **two** plates and measured the **green** and **red** channels.
+
+### General fluorescence data:
+The first data frame is straightforward, giving an overview of the average fluorescence per worm. The average fluorescence here is the sum of the 16-bit gray values divided by the length in pixels of the worm. 
+
+#### Plot fluorescences against each other:
+
+The plot below looks at the first plate and plots the green against the red value
+```{R}
+WormscapeResults[[1]][[1]] %>%
+  select(!ChannelColor) %>%
+  rename(Gint=IntMean)  %>%
+  left_join(WormscapeResults[[2]][[1]] %>%
+              rename(Rint=IntMean) %>%
+              select(!ChannelColor)) %>%
+  ggplot(aes(x=Gint,y=Rint,col=Type))+
+    geom_point()+
+    facet_wrap(~Bacteria,scales = "free")
+```
+
+The code below plots the box plot for different colors per well
+
+```{R}
+WormscapeResults[[1]][[1]] %>%
+  rbind(WormscapeResults[[2]][[1]]) %>%
+  ggplot(aes(x=well,y=IntMean,col=ChannelColor))+
+    geom_boxplot()+
+    facet_wrap(~Bacteria,scales = "free")
+```
+
+
+### Longitudinal fluorescence data:
+
+```{R}
+WormscapeResults[[1]][[2]] %>%
+  select(Per,Intensity,worm,GP.type,Bacteria) %>%
+  rename(Comp=Bacteria) %>%
+  left_join(WormscapeResults[[2]][[2]] %>%
+              select(Per,Intensity,worm,ChannelColor)) %>%
+  ggplot(aes(x=as.numeric(Per),y=Intensity,col=ChannelColor))+
+    geom_smooth()+
+    facet_wrap(~Comp)
+```
+### Heatmap fluorescence average:
+
+
+
+### Fancy in-depth population analysis
+
+
+# To do:
+
+- Merge first and second script
+- Implement automatic detection of worm
