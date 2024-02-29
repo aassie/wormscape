@@ -43,12 +43,13 @@ pixelScale=1.5
 # Loading data
 setwd(WDpath)
 chlist<-list()
-for (i in 1:length(channel.colors)){
-  chlist[[i]]<-list(list.files(path=PlateName, full.names=TRUE, pattern = paste0(".*Ch",i,".*.txt")),channel.colors[i])
+a=0
+for (i in 2:(length(channel.colors)+1)){
+  a=a+1
+  chlist[[a]]<-list(list.files(path=PlateName, full.names=TRUE, pattern = paste0(".*Ch",i,".*.txt")),channel.colors[i])
 }
 
 meta<-read.csv(MetaPath)
-
 
 # Functions:
 
