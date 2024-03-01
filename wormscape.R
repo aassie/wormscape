@@ -46,7 +46,7 @@ chlist<-list()
 a=0
 for (i in 2:(length(channel.colors)+1)){
   a=a+1
-  chlist[[a]]<-list(list.files(path=PlateName, full.names=TRUE, pattern = paste0(".*Ch",i,".*.txt")),channel.colors[i])
+  chlist[[a]]<-list(list.files(path=PlateName, full.names=TRUE, pattern = paste0(".*Ch",i,".*.txt")),channel.colors[a])
 }
 
 meta<-read.csv(MetaPath)
