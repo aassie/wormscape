@@ -16,28 +16,23 @@ This script is a modified version of the  worm.aligner script by Hanneke Okkenha
 Here is a condensed version:
 
 1. Install the plugin in Fiji by going to `Plugin`>`Install` and selecting the file. The Worm_align plugin should then appear at the bottom of that menu
-2. Once you start the plugin, a box asks if you are restarting a failed annotation run.
-  Please take a look at the note below if you messed up or if the script was interrupted on your previous run. But if you did click `yes` 
-3. A message box will pop up. Do not click on ok straight away! Select the width of a worm, then click on OK
-4. A series of boxes will ask you to adjust the contrast/Brightness of the pictures. Adjust as you see fit, but I advise you to keep everything the same. Proper exposure time should have been selected at the microscope. Note down the brightness contrast values in case it crashes (see below).
-5. Once You have adjusted (or have not) the pictures, let the script work until the next message box pops up
-6. Again, wait to click on ok until you have selected all your worms !!!
-7. If there is no worm in the well you are going over, you should still add a random, very small line; otherwise, the script will stop. Small segments are filtered out later with the R script.
-8. Once you select a worm, press `Cmd + t` (Mac) or `Crtl + t` (windows) to add that worm to the marked list. A new little box will pop up and show you the coordinates of your worms. You can tick the `Show all` option to see which worms have a line and `labels` to see how many selections have been made.
-9. Once all worms are selected, click ok on the message box, let the script work, and move to the next picture
-10. Repeat steps 6-9 for all the pictures in your experiment
+2. The script now automatically detect if there is a previous `Worm-align` run on the selected folder. You can start again from where you stopped or start from scratch. If you start from scratch it will overwrite the existing folder. 
+3. A message box will pop up. **DO NOT** click on OK straight away! Select the *WIDTH* of a worm, then click on OK
+4. A series of boxes will ask you to choose a LUT color for each channel you have. Make sure you use **Grayscales** for your brightfield channel.
+5. Let the script work until the next message box pops up.
+6. Again, **DO NOT** click on OK straight away! 
+7. Trace a line along the *LENGTH*
+8. If there is no worm on the openned picture, add a random, very small line; otherwise, the script will stop. Small segments are filtered out later with the R script.
+9. Once you select a worm, press `Cmd + t` (Mac) or `Crtl + t` (windows) to add that worm to the marked list. A new little box will pop up and show you the coordinates of your worms. You can tick the `Show all` option to see which worms have a line and `labels` to see how many selections have been made.
+10. Once all worms are selected, click ok on the message box, let the script work, and move to the next picture
+11. Repeat steps 6-10 for all the pictures in your experiment
 
 Here are some additional tips to go around the potential frustration of this script:
 
 - The script will stop if you click too early (by reflex) on the `OK` button of one of the information panels.
-- If the script stopped for some reason and you still have some pictures to process, you can restart the process. 
-  - Note down which picture you were processing. 
-  - If you already traced some line over worms on the picture you were processing save the ROI position as a text file in the roi panel.
-  - Move the pictures you have already processed from the raw picture folder into a different one (Like a `Done` folder). 
-  - Rerun the script, and on the first dialogue panel, click `Yes`. It will reopen your first picture for brightness adjustment and worm length determination.
-  - Make sure that the min/max intensity values used for the initial adjustment steps are the same.
-  - The first picture will close and restart at your last picture. 
-  - If you had ROIs saved as a text file, you can reload them through the ROI panel and continue.
+- If the script stopped for some reason and you still have some pictures to process, you can restart the process.
+  - The script now automatically detect if `Worm-align` ran on the selected folder before
+  - If you want to restart at a specific picture, delete it's associated `_ROIs.zip` in the data folder.
 
 # AliProcess.ijm
 
