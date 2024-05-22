@@ -57,14 +57,15 @@ This step requires a Metadata file with the following required columns: `Well`, 
 ## Wormscape Output
 
 At the end of this lengthy process, you will have an object called: `WormscapeResults`.
-This is a list of lists of data frames. One per channel and per plate. 
-If you have one plate and two channels, you'll have two lists of 3 data frames
-If you have one plate and three channels, you'll have three lists of 3 data frames
-If you have two plates and three channels, you'll have six lists of 3 data frames
+This is a list of 3 lists. Each list contain the data formatted differently, one channel per list.
 
-- The first data frame is a tibble with the average fluorescence intensity and length per worm, has metadata
-- The second data frame is a tibble with the longitudinal fluorescence profile of each worm, has metadata
-- The third data frame is a tibble of a long format matrix of the average pixel value of the worm fluorescence profile along the x and y axis (normalized in percent). Doesn't have metadata
+- `Average.Fluorescence`: contains tibbles with the average fluorescence intensity and length per worm, has metadata
+- `Profile.Fluorescence`: contains tibbles with the longitudinal fluorescence profile of each worm, has metadata
+- `Matrix.Fluorescence` : contains tibbles of a long format matrix of the average pixel value of the worm fluorescence profile along the x and y axis (normalized in percent). Doesn't have metadata
+
+Example:
+If you want to access Average fluorescence of the first channel defined as Green in your `channel.fluorescence` object.
+You can access it with either `WormscapeResults[[1]][[1]]` or `WormscapeResults$Average.Fluorescence$Green`
 
 ## Analyzing the data
 In the example below, we will pretend to have analyzed an experiment with **two** plates and measured the **green** and **red** channels.
@@ -74,45 +75,38 @@ The first data frame is straightforward, giving an overview of the average fluor
 
 #### Plot fluorescences against each other:
 
-The plot below looks at the first plate and plots the green against the red value
+The code below plots the green values against the red values and facet the data per plate
+
 ```{R}
 WormscapeResults[[1]][[1]] %>%
   select(!ChannelColor) %>%
   rename(Gint=IntMean)  %>%
-  left_join(WormscapeResults[[2]][[1]] %>%
+  left_join(WormscapeResults[[1]][[2]] %>%
               rename(Rint=IntMean) %>%
               select(!ChannelColor)) %>%
   ggplot(aes(x=Gint,y=Rint,col=Type))+
     geom_point()+
-    facet_wrap(~Bacteria,scales = "free")
+    facet_wrap(~Plate,scales = "free")
 ```
 
-The code below plots the box plot for different colors per well
+The code below plots the box plot for different colors per well and plates
 
 ```{R}
 WormscapeResults[[1]][[1]] %>%
-  rbind(WormscapeResults[[2]][[1]]) %>%
+  rbind(WormscapeResults[[1]][[2]]) %>%
   ggplot(aes(x=well,y=IntMean,col=ChannelColor))+
     geom_boxplot()+
-    facet_wrap(~Bacteria,scales = "free")
+    facet_wrap(~Plate,scales = "free")
 ```
 
 
 ### Longitudinal fluorescence data:
 
-```{R}
-WormscapeResults[[1]][[2]] %>%
-  select(Per,Intensity,worm,GP.type,Bacteria) %>%
-  rename(Comp=Bacteria) %>%
-  left_join(WormscapeResults[[2]][[2]] %>%
-              select(Per,Intensity,worm,ChannelColor)) %>%
-  ggplot(aes(x=as.numeric(Per),y=Intensity,col=ChannelColor))+
-    geom_smooth()+
-    facet_wrap(~Comp)
-```
+TBD
+
 ### Heatmap fluorescence average:
 
-
+TBD
 
 ### Fancy in-depth population analysis
 
