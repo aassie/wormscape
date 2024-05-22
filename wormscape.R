@@ -2,8 +2,8 @@
 ###  WormScape v0.8  ###
 ########################
 
-# February 2024 update
-# Streamlining code and making it easier to use
+# May 2024 update
+# Updated final output to be a simpler format.
 
 # Todo:
 # - Make it a package 
@@ -169,6 +169,35 @@ wormscape<-function(channelfiles,ChCol,meta){
   cat(paste("Generating Matrices steps took:", timeCheck(sto,sta),"\n"))
   
   final<-list(ch.Summ,ch.merge,ch.mat)
+  
+  cat(paste("Generating Final Tables\n"))
+  
+  k <- length(channel.colors)
+  d =vector("list", k)
+  for(j in 1:3){
+    d[[j]]=transpose(final)[[j]]
+    channel <- (seq_along(d[[j]]) - 1) %% k + 1
+    distributed[[j]] <- vector("list", k)
+    for (i in seq_along(d[[j]])) {
+      channel_index <- channel[i]
+      distributed[[j]][[channel_index]] <- c(distributed[[j]] [[channel_index]], list(d[[j]][[i]]))
+    }
+  }
+  final=vector("list",3)
+  final[[1]]=vector("list",k)
+  names(final)[1]<-"Average.Fluorescence"
+  final[[2]]=vector("list",k)
+  names(final)[2]<-"Profile.Fluorescence"
+  final[[3]]=vector("list",k)
+  names(final)[3]<-"Matrix.Fluorescence"
+  for(j in 1:k){
+    final[[1]][[j]]=reduce(distributed[[1]][[j]], rbind)
+    names(final[[1]])[j]<-channel.colors[j]
+    final[[2]][[j]]=reduce(distributed[[2]][[j]], rbind)
+    names(final[[2]])[j]<-channel.colors[j]
+    final[[3]][[j]]=suppressMessages(reduce(distributed[[3]][[j]], left_join))
+    names(final[[3]])[j]<-channel.colors[j]
+  }
   return(final)
 }
 
@@ -210,11 +239,15 @@ Processor<-function(chlist){
 
 WormscapeResults<-wormscape(chlist)
 
-#This function creates a list of list of data frames. One per channel and per plates. 
-# If you have 1 plate and 2 channels, you'll have 2 lists of 3 data frames
-# If you have 1 plate and 3 channels, you'll have 3 lists of 3 data frames
-# If you have 2 plates and 3 channels, you'll have 6 lists of 3 data frames
+#This function creates a list of 3 lists. Each list contain the data formatted differently, one channel per list.
 
-#First data frame is a tibble with the average fluorescence intensity and length per worm, has metadata
-#Second data frame is a tibble with the longitudinal fluorescence profile of each worm, has metadata
-#Third data frame is a tibble of a long format matrix of the average pixel value of the worm fluorescence profile along the x and y axis (normalized in percent). Doesn't have metadata
+#Average.Fluorescence
+#First list contains tibbles with the average fluorescence intensity and length per worm, has metadata
+#Profile.Fluorescence
+#Second list contains tibbles with the longitudinal fluorescence profile of each worm, has metadata
+#Matrix.Fluorescence
+#Third list contains tibbles of a long format matrix of the average pixel value of the worm fluorescence profile along the x and y axis (normalized in percent). Doesn't have metadata
+
+#Example
+#If you want to access Average fluorescence of the first channel defined as Green
+#You can access it with either WormscapeResults[[1]][[1]] or WormscapeResults$Average.Fluorescence$Green
