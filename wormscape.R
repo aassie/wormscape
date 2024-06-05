@@ -43,12 +43,33 @@ pixelScale=1.5
 # Loading data
 setwd(WDpath)
 chlist<-list()
-a=0
-for (i in 2:(length(channel.colors)+1)){
-  a=a+1
-  chlist[[a]]<-list(list.files(path=PlateName, full.names=TRUE, pattern = paste0(".*Ch",i,".*.txt")),channel.colors[a])
-}
 
+channel.check<-function(){
+  a=0
+  for (i in 2:(length(channel.colors)+1)){
+    a=a+1
+    chlist[[a]]<-list(list.files(path=PlateName, full.names=TRUE, pattern = paste0(".*Ch",i,".*.txt")),channel.colors[a])
+  }
+  ctest<-vector()
+  for( i in 1:length(channel.colors)){
+    ctest[i]<-length(transpose(chlist)[[1]][[i]])  
+  }
+  if(length(unique(ctest))==1){
+    cat("All good, let's go!\n \n")
+    return(chlist)
+  }else{
+    cat("One of your channel doesn't have the same number of files as the other\n")
+    cat("This is what I have:\n")
+    for(i in 1:length(channel.colors)){
+      cat(paste("Channel",i,"-",channel.colors[i],"has",ctest[i],"files\n"))
+    }
+    cat("Possible error:\n")
+    cat("1) Did you add an extra channel?\n")
+    cat("2) Did you forget one channel in the fiji step?\n")
+    stop("Inconsitent file number")
+  }
+  
+}
 meta<-read.csv(MetaPath)
 
 # Functions:
@@ -234,6 +255,8 @@ Processor<-function(chlist){
   } else {
     stop("Metadata not correct")
   }
+  cat(" \nChecking single worm files")
+  chlist<-channel.check()
   final<-list()
   for(z in 1:length(chlist)){
     cat(" \n")
