@@ -27,10 +27,10 @@ PlateName="WormScapeOutput"
 
 # The name of your metadata file
 ## Use the template file for simplicity
-MetaPath="metadata.txt"
+MetaPath="metadata.csv"
 
 # Set channel colors in the same order as the microscopy channels:
-channel.colors=c("Green","Red","Magenta")
+channel.colors=c("Green","Red")
 
 # Set pixel scale (µm):
 pixelScale=1.5
@@ -54,6 +54,7 @@ meta<-read.csv(MetaPath)
 # Functions:
 
 wormscape<-function(channelfiles,ChCol,meta){
+  cat(paste("Processing",ChCol,"channel\n"))
   channel.data<-list()
   channel.profile<-list()
   channel.bgflu<-list()
@@ -132,14 +133,14 @@ wormscape<-function(channelfiles,ChCol,meta){
     separate(worms, into = c("Plate","well","worm"), sep="_") %>% 
     mutate(well=gsub("Well","",well),
            og=paste0(Plate,"_","Well",well,"_",worm)) %>% 
-    left_join(meta, by=c("Plate","well"))
+    left_join(meta %>% filter(ChannelColor==ChCol), by=c("Plate","well"))
   
   ch.Summ<-tibble(ID=names(channel.data),
                   IntMean=sapply(channel.data, sum)/lengths(channel.data),
                   WormLength=lengths(channel.data)*pixelScale) %>%
     separate(ID, into = c("Plate","well","worm"), sep="_") %>%
     mutate(well=gsub("Well","",well)) %>%
-    left_join(meta, by=c("Plate","well")) %>%
+    left_join(meta %>% filter(ChannelColor==ChCol), by=c("Plate","well")) %>%
     mutate(ChannelColor=ChCol)
   
   sto<-Sys.time()
@@ -169,9 +170,14 @@ wormscape<-function(channelfiles,ChCol,meta){
   cat(paste("Generating Matrices steps took:", timeCheck(sto,sta),"\n"))
   
   final<-list(ch.Summ,ch.merge,ch.mat)
+  return(final)
   
+  cat(paste(ChCol,"channel done \n \n"))
+}
+
+TableMerger<-function(final){
   cat(paste("Generating Final Tables\n"))
-  
+  distributed<-list()
   k <- length(channel.colors)
   d =vector("list", k)
   for(j in 1:3){
@@ -199,6 +205,7 @@ wormscape<-function(channelfiles,ChCol,meta){
     names(final[[3]])[j]<-channel.colors[j]
   }
   return(final)
+  cat(paste("Final table merged\n"))
 }
 
 Metacorrection<-function(meta){
@@ -213,31 +220,36 @@ Metacorrection<-function(meta){
 }
 
 Processor<-function(chlist){
+  cat(paste("Starting Wormscape\n\n"))
+  cat(paste("Checking Metadata\n"))
+  sta<-Sys.time()
   if(all(c("SP.well","SP.row","Plate") %in% colnames(meta))){
-    cat("")
+    cat(" \n")
     cat("Good - I found a row and well column")
     cat("Adjusting Metadata\n")
     meta<-Metacorrection(meta)
   } else if(all(c("well","Plate") %in% colnames(meta))){
-    cat("")
-    cat("Good - I found a well column - No correction needed")
+    cat(" \n")
+    cat("Good - I found a well column - No correction needed\n")
   } else {
     stop("Metadata not correct")
   }
-  cat("\n")
   final<-list()
   for(z in 1:length(chlist)){
-    cat(paste("Processing",chlist[[z]][2],"channel \n"))
-    final[[z]]<-ChProcessor(unlist(chlist[[z]][1]),unlist(chlist[[z]][2]),meta)
+    cat(" \n")
+    final[[z]]<-wormscape(unlist(chlist[[z]][1]),unlist(chlist[[z]][2]),meta)
   }
+  final<-TableMerger(final)
   return(final)
+  sto<-Sys.time()
+  cat(paste("Wormscape processing is done\n Pipeline took:", timeCheck(sto,sta),"\n"))
 }
 
 #######################################
 ## The code that analyzes your data: ##
 #######################################
 
-WormscapeResults<-wormscape(chlist)
+WormscapeResults<-Processor(chlist)
 
 #This function creates a list of 3 lists. Each list contain the data formatted differently, one channel per list.
 
