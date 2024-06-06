@@ -3,7 +3,7 @@
 // The script has then been modified and adapted for Wormscape.
 // Adrien Assie, May 2024
 
-macro "Worm-align"{
+macro "Worm_Align"{
 	//Sanity check
 	roiManager("Reset");
 	//Let's Go!
@@ -41,14 +41,14 @@ macro "Worm-align"{
 				}else{
 					print("All ROIs were found, worm align step appear to be done");
 					showMessage("All ROIs were found, worm align step appear to be done");
-					exit
+					exit;
 				}
 			}
 		}else{
-			newRun=1
+			newRun=1;
 			}
 	}else{
-		newRun=1
+		newRun=1;
 	}
 	if(newRun==1){
 		print("New Wormscape Run detected");
@@ -78,8 +78,8 @@ macro "Worm-align"{
 	 w = width;
 	 h = height;
 	 c = channels;
-	 a = (p1/1.50)*w;
-	 b = (p2/1.50)*h;
+	 a = (p1/1)*w;
+	 b = (p2/1)*h;
 	run("Size...", "width=&a height=&b constrain average interpolation=Bilinear");
 	run("Properties...", "channels=&c slices=1 frames=1 unit=micron ");
 	
@@ -100,13 +100,14 @@ while(test < 1){
 		waitForUser("Draw a line across the width of a representative worm.\nThe width will be used to generate the montage.");
 		roiManager("Add");
 		roiManager("Save", data+File.separator+"Reference_ROIs.zip");
-		roiManager("Delete");
 		run("Set Measurements...", "display redirect=None decimal=3");
 		run("Measure");
 		line_width = Table.get("Length", 0);
 		l = line_width;
 		Table.create("Results");
+		roiManager("Delete");
 	}
+	
 
 	// Getting all required settings from the example image
 	ImgBit = bitDepth();
@@ -165,7 +166,7 @@ while(test < 1){
 
 	// Save the table with settings used to generate the montage
 	selectWindow("Results");
-	saveAs("Results", CP+File.separator+"Settings.csv");
+	saveAs("Results", data+File.separator+"Settings.csv");
 	Table.rename("Results", "Settings");}
 	selectWindow(title);
 	run("Close");
