@@ -1,8 +1,8 @@
 ########################
-###  WormScape v0.8  ###
+###  WormScape v0.9  ###
 ########################
 
-# May 2024 update
+# June 2024 update
 # Updated final output to be a simpler format.
 
 # Todo:
@@ -44,33 +44,44 @@ pixelScale=1.5
 setwd(WDpath)
 chlist<-list()
 
-channel.check<-function(){
-  a=0
-  for (i in 2:(length(channel.colors)+1)){
-    a=a+1
-    chlist[[a]]<-list(list.files(path=PlateName, full.names=TRUE, pattern = paste0(".*Ch",i,".*.txt")),channel.colors[a])
-  }
-  ctest<-vector()
-  for( i in 1:length(channel.colors)){
-    ctest[i]<-length(transpose(chlist)[[1]][[i]])  
-  }
-  if(length(unique(ctest))==1){
-    cat("All good, let's go!\n \n")
-    return(chlist)
-  }else{
-    cat("One of your channel doesn't have the same number of files as the other\n")
-    cat("This is what I have:\n")
-    for(i in 1:length(channel.colors)){
-      cat(paste("Channel",i,"-",channel.colors[i],"has",ctest[i],"files\n"))
-    }
-    cat("Possible error:\n")
-    cat("1) Did you add an extra channel?\n")
-    cat("2) Did you forget one channel in the fiji step?\n")
-    stop("Inconsitent file number")
-  }
-  
-}
 meta<-read.csv(MetaPath)
+
+channel.check<-function(){
+  for (p in 1:length(unique(meta$Plate))){
+    PlateName=unique(meta$Plate)[p]
+    cat(paste("Plate",p),"-",PlateName,"\n")
+    #a=0
+    for (i in 1:(length(channel.colors))){
+      a=i+1
+      cat(paste0(channel.colors[i]),"\n")
+      if(p==1){
+        chlist[[i]]<-list(list.files(path=PlateName, full.names=TRUE, pattern = paste0(".*Ch",a,".*.txt")))
+        chlist[[i]][[2]]<-channel.colors[i]
+      }else{
+      chlist[[i]][[1]]<-c(chlist[[i]][[1]],list.files(path=PlateName, full.names=TRUE, pattern = paste0(".*Ch",a,".*.txt")))
+      }
+    }
+  }
+    ctest<-vector()
+    for( i in 1:length(channel.colors)){
+      ctest[i]<-length(transpose(chlist)[[1]][[i]])  
+    }
+    if(length(unique(ctest))==1){
+      cat("All good, let's go!\n \n")
+      return(chlist)
+    }else{
+      cat("One of your channel doesn't have the same number of files as the other\n")
+      cat("This is what I have:\n")
+      for(i in 1:length(channel.colors)){
+        cat(paste("Channel",i,"-",channel.colors[i],"has",ctest[i],"files\n"))
+      }
+      cat("Possible error:\n")
+      cat("1) Did you add an extra channel?\n")
+      cat("2) Did you forget one channel in the fiji step?\n")
+      stop("Inconsitent file number")
+    }
+}
+
 
 # Functions:
 
@@ -272,7 +283,7 @@ Processor<-function(chlist){
 ## The code that analyzes your data: ##
 #######################################
 
-WormscapeResults<-Processor(chlist)
+WormscapeResults<-Processor()
 
 #This function creates a list of 3 lists. Each list contain the data formatted differently, one channel per list.
 
