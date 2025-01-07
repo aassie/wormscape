@@ -18,7 +18,7 @@ macro "Worm_Align"{
 	//Loop to check if a previous run was done
 	if(File.exists(out1 + "_output")==1){
 		print("Previous Wormscape Run detected");
-		ynBox=getBoolean("Previous Wormscape Run detected.\nDo you want to load the previous settings.");
+		ynBox=getBoolean("Previous Wormscape Run detected.\nDo you want to load the previous settings?");
 		if(ynBox==1){
 			output = out1 + "_output";
 			CP = output+File.separator+"CellProfiler";
@@ -69,7 +69,8 @@ macro "Worm_Align"{
 	setimg = input + list[0];
 	run("Bio-Formats Windowless Importer", "open="+setimg+" color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
 	title = getTitle();
-
+	
+	
 	// Standardising the pixel size
 	getDimensions(width, height, channels, slices, frames);
 	getPixelSize(unit, pixelWidth, pixelHeight);
@@ -132,6 +133,18 @@ while(test < 1){
 			chI = Dialog.getString();
 			chL = Dialog.getChoice();
 			montage = Dialog.getCheckbox();
+					// Set the B&C settings for each channel
+			EditInt=getBoolean("Do you want to manually edit this channel intensity?");
+			if(EditInt==1){
+				run("Brightness/Contrast...");
+				waitForUser("Adjust B&C for channel " + j);
+				getMinAndMax(min, max);
+				Table.set("Min", j-1 , min);
+				Table.set("Max", j-1 , max);
+			} else {
+				Table.set("Min", j-1 , 0);
+				Table.set("Max", j-1 , 4095);
+			}
 			Table.set("Channel", j-1, j);
 			Table.set("LUT", j-1, chL);
 			Table.set("Info", j-1, chI);
