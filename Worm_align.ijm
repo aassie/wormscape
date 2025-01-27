@@ -1,7 +1,7 @@
 // Worm-align
 // Original script forked from from github https://github.com/hannekeo/Worm-align/blob/master/Worm_align.ijm
 // The script has then been modified and adapted for Wormscape.
-// Adrien Assie, May 2024
+// Adrien Assie, January 2025
 
 macro "Worm_Align"{
 	//Sanity check
@@ -26,6 +26,7 @@ macro "Worm_Align"{
 			aligned = output+File.separator+"aligned";
 			single = output+File.separator+"single_worms";
 			previousRun=1;
+			newRun=0;
 			fileCheck=1;
 			checkVar=0;
 			//Loop to find the last processed picture
@@ -52,6 +53,7 @@ macro "Worm_Align"{
 	}
 	if(newRun==1){
 		print("New Wormscape Run detected");
+		//Create folders
 		File.makeDirectory(out1 + "_output");
 		output = out1 + "_output";
 		File.makeDirectory(output+File.separator+"CellProfiler");
@@ -64,13 +66,13 @@ macro "Worm_Align"{
 		single = output+File.separator+"single_worms";
 		previousRun=0;
 		checkVar=0;
-	}
+		}
 	// Open the first image to get the settings
 	setimg = input + list[0];
 	run("Bio-Formats Windowless Importer", "open="+setimg+" color_mode=Default rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT");
 	title = getTitle();
-	
-	
+
+
 	// Standardising the pixel size
 	getDimensions(width, height, channels, slices, frames);
 	getPixelSize(unit, pixelWidth, pixelHeight);
@@ -83,18 +85,24 @@ macro "Worm_Align"{
 	 b = (p2/1)*h;
 	run("Size...", "width=&a height=&b constrain average interpolation=Bilinear");
 	run("Properties...", "channels=&c slices=1 frames=1 unit=micron ");
-	
+
 	test=0;
+
 while(test < 1){
 	String.resetBuffer;
 	if(previousRun==1){
+		print("Loading previous worm length");
 		roiManager("Open", data+File.separator+"Reference_ROIs.zip");
 		run("Set Measurements...", "display redirect=None decimal=3");
+		roiManager("Select", 0);
 		run("Measure");
 		line_width = Table.get("Length", 0);
 		l = line_width;
+		print(l);
+		Table.create("Results");
 		roiManager("Delete");
 	}else{
+		print("Worm width setup");
 		// Measure the width for the montage lines
 		// This parameter sets the height of the panels in the montage.
 		setTool("line");
@@ -102,6 +110,7 @@ while(test < 1){
 		roiManager("Add");
 		roiManager("Save", data+File.separator+"Reference_ROIs.zip");
 		run("Set Measurements...", "display redirect=None decimal=3");
+		roiManager("Select", 0);
 		run("Measure");
 		line_width = Table.get("Length", 0);
 		l = line_width;
@@ -112,78 +121,93 @@ while(test < 1){
 
 	// Getting all required settings from the example image
 	ImgBit = bitDepth();
-	if(ImgBit==24){
-		test=1;
-	}else{
-		selectWindow(title);
-		luts = getList("LUTs");
-
-		for(j=1;j<channels+1;j++){
-			setSlice(j);
-			// Which channel is which color?
-			// Are any channels to be excluded from the montage
-			Dialog.create("Worm-align macro");
-			Dialog.addMessage("Which is which? Enter channel information. \nRemove the tick if you want the channel excluded from the montage.-- ");
-			Dialog.addString("Channel "+j, 0);
-			Dialog.addToSameRow();
-			Dialog.addChoice("LUT", luts);
-			Dialog.addToSameRow();
-			Dialog.addCheckbox("include", 1);
-			Dialog.show();
-			chI = Dialog.getString();
-			chL = Dialog.getChoice();
-			montage = Dialog.getCheckbox();
-					// Set the B&C settings for each channel
-			EditInt=getBoolean("Do you want to manually edit this channel intensity?");
-			if(EditInt==1){
-				run("Brightness/Contrast...");
-				waitForUser("Adjust B&C for channel " + j);
-				getMinAndMax(min, max);
-				Table.set("Min", j-1 , min);
-				Table.set("Max", j-1 , max);
-			} else {
-				Table.set("Min", j-1 , 0);
-				Table.set("Max", j-1 , 4095);
-			}
-			Table.set("Channel", j-1, j);
-			Table.set("LUT", j-1, chL);
-			Table.set("Info", j-1, chI);
-			Table.set("Montage", j-1, montage);
-			Table.set("Folder", j-1, input);}
-			Table.update;
-
-		// Apply settings
-		selectWindow(title);
-		for(m=1; m<channels+1; m++){
-			lut = Table.getString("LUT", m-1);
+	if(previousRun==0){
+		if(ImgBit==24){
+			test=1;
+		}else{
+			print("Starting Settings calibration");
 			selectWindow(title);
-			setSlice(m);
-			run(lut);
-			mont = Table.get("Montage", m-1);
-			string = String.append(mont);}
-
-		if(channels>1){
-			active = String.buffer;
-			Stack.setDisplayMode("composite");
-			Stack.setActiveChannels(active);}}
-
-	// Check that all settings are fine
-	Dialog.create("Checking all settings");
-	Dialog.addCheckbox("Tick this box if you are happy with the settings", 0);
-  	Dialog.addCheckbox("Montage of worms from single image", 1);
-  	Dialog.addCheckbox("Combined montage", 1);
-  	Dialog.show;
-	test = Dialog.getCheckbox();
-  	msing = Dialog.getCheckbox();
-  	mall = Dialog.getCheckbox();
-
-	// Save the table with settings used to generate the montage
-	selectWindow("Results");
-	saveAs("Results", data+File.separator+"Settings.csv");
-	Table.rename("Results", "Settings");}
-	selectWindow(title);
-	run("Close");
+			luts = getList("LUTs");
 	
+			for(j=1;j<channels+1;j++){
+				setSlice(j);
+				// Which channel is which color?
+				// Are any channels to be excluded from the montage
+				Dialog.create("Worm-align macro");
+				Dialog.addMessage("Which is which? Enter channel information. \nRemove the tick if you want the channel excluded from the montage.-- ");
+				Dialog.addString("Channel "+j, 0);
+				Dialog.addToSameRow();
+				Dialog.addChoice("LUT", luts);
+				Dialog.addToSameRow();
+				Dialog.addCheckbox("include", 1);
+				Dialog.show();
+				chI = Dialog.getString();
+				chL = Dialog.getChoice();
+				montage = Dialog.getCheckbox();
+						// Set the B&C settings for each channel
+				EditInt=getBoolean("Do you want to manually edit this channel intensity?");
+				if(EditInt==1){
+					run("Brightness/Contrast...");
+					waitForUser("Adjust B&C for channel " + j);
+					getMinAndMax(min, max);
+					Table.set("Min", j-1 , min);
+					Table.set("Max", j-1 , max);
+				} else {
+					Table.set("Min", j-1 , 0);
+					Table.set("Max", j-1 , 4095);
+				}
+				Table.set("Channel", j-1, j);
+				Table.set("LUT", j-1, chL);
+				Table.set("Info", j-1, chI);
+				Table.set("Montage", j-1, montage);
+				Table.set("Folder", j-1, input);}
+				Table.update;
+	
+			// Apply settings
+			selectWindow(title);
+			for(m=1; m<channels+1; m++){
+				lut = Table.getString("LUT", m-1);
+				selectWindow(title);
+				setSlice(m);
+				run(lut);
+				mont = Table.get("Montage", m-1);
+				string = String.append(mont);}
+	
+			if(channels>1){
+				active = String.buffer;
+				Stack.setDisplayMode("composite");
+				Stack.setActiveChannels(active);}}
+	
+		// Check that all settings are fine
+		Dialog.create("Checking all settings");
+		Dialog.addCheckbox("Tick this box if you are happy with the settings", 0);
+	  	Dialog.addCheckbox("Montage of worms from single image", 1);
+	  	Dialog.addCheckbox("Combined montage", 1);
+	  	Dialog.show;
+		test = Dialog.getCheckbox();
+	  	msing = Dialog.getCheckbox();
+	  	mall = Dialog.getCheckbox();
+	
+		// Save the table with settings used to generate the montage
+		selectWindow("Results");
+		saveAs("Results", data+File.separator+"Settings.csv");
+		Table.rename("Results", "Settings");
+		selectWindow(title);
+		run("Close");
+		}else{
+			print("Load the setting file");
+			Table.open(data+File.separator+"Settings.csv");
+			Table.rename("Settings.csv", "Settings");
+			selectWindow(title);
+			run("Close");
+			
+			Dialog.create("Checking all settings");	
+	  		Dialog.addCheckbox("Montage of worms from single image", 1);
+		  	Dialog.addCheckbox("Combined montage", 1);
+		  	Dialog.show;
+		  	msing = Dialog.getCheckbox();
+		  	mall = Dialog.getCheckbox();
+		}
 	// The setup process is now completed and the macro proceeds to process all images in the input folder
 	// Open all files in the input folder - checkVar is used as minimal image number to process
 	for (i=checkVar; i<list.length; i++){
@@ -329,6 +353,7 @@ while(test < 1){
 		run("Set Measurements...", "min display redirect=None decimal=0");
 		roiManager("Show All");
 		roiManager("Measure");
+		selectWindow("Results");
 		wormL = Table.getColumn("Length");
 	
 		for (s=0; s<roiManager("count"); ++s) {
@@ -443,4 +468,3 @@ while(test < 1){
 		}
 	}
 showMessage("The macro is finished.");
-}
